@@ -13,12 +13,21 @@ def generate_pdf():
 
     url = f"https://letstrip.world/dashboard/pdf-preview?id={itinerary_id}"
 
-    # Temp file for PDF
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
+    # Use /tmp folder for temporary files on Railway
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf", dir="/tmp") as tmp_pdf:
         pdf_path = tmp_pdf.name
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--single-process",
+                "--disable-gpu",
+            ]
+        )
         page = browser.new_page()
         page.goto(url, wait_until="load")
         page.wait_for_selector("body")
@@ -34,10 +43,11 @@ def generate_pdf():
             page_ranges="1",
         )
         browser.close()
-    # Return file to user
+
+    # Return generated PDF file as attachment
     return send_file(pdf_path, as_attachment=True, download_name="itinerary.pdf")
 
+
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 8000))
-    app.run(host="0.0.0.0", port=port,debug=True)
+    app.run(host="0.0.0.0", port=port)
